@@ -27,7 +27,9 @@ class MoodleConfig(BaseModel):
 
 class Course(BaseModel):
     """Course strucutre."""
-    ...
+    id: int
+    shortname: str
+    fullname: str
 
 
 class Assignment(BaseModel):

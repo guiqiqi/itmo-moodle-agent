@@ -27,8 +27,5 @@ async def config() -> MoodleConfig:
 @pytest.fixture(scope='session')
 async def client(config: MoodleConfig) -> t.AsyncGenerator[APIClient, None]:
     """Moodle API client for tests."""
-    client = APIClient(config)
-    await client.authenticate()
-    await client.sync_site_info()
-    yield client
-    await client.session.close()
+    async with APIClient(config) as client:
+        yield client

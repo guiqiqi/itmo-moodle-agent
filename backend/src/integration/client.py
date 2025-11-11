@@ -1,13 +1,15 @@
 import aiohttp
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from backend.src.integration import (
     IntegrationException,
     MoodleConfig,
-    logger
+    logger,
+    Course
 )
 
 import typing as t
+import typing_extensions as te
 
 
 class AuthenticationForm(BaseModel):
@@ -37,9 +39,14 @@ class AuthenticationException(IntegrationException):
     _code: int = 1001
 
 
+class UnSynchronizedSiteInfo(IntegrationException):
+    """Exception when API calling without syncornized siteinfo."""
+    _code: int = 1002
+
+
 class APICallingException(IntegrationException):
     """Exception raised for API calling errors."""
-    _code: int = 1002
+    _code: int = 1010
 
 
 class APIClient:
@@ -48,7 +55,17 @@ class APIClient:
         self.config = config
         self.token: t.Optional[str] = None
         self.site: t.Optional[SiteInfo] = None
-        self.session = aiohttp.ClientSession()
+        self.session: aiohttp.ClientSession = aiohttp.ClientSession()
+
+    async def __aenter__(self) -> te.Self:
+        """Prepare an authenticated client for using."""
+        self.session: aiohttp.ClientSession = aiohttp.ClientSession()
+        await self.authenticate()
+        await self.sync_site_info()
+        return self
+
+    async def __aexit__(self, *_) -> None:
+        await self.session.close()
 
     async def authenticate(self) -> str:
         """Authenticate with Moodle and obtain a token."""
@@ -114,3 +131,14 @@ class APIClient:
                     f'failed to parse JSON response from {endpoint}: {e}')
                 raise APICallingException(
                     f'failed to parse JSON response from {endpoint}') from e
+
+    async def get_courses(self) -> t.List[Course]:
+        """Get all courses for current user."""
+        if not self.site:
+            raise UnSynchronizedSiteInfo(
+                f'cannot obtain userid from site info: {self.site}')
+        response = await self._make_request(
+            endpoint='core_enrol_get_users_courses',
+            params={'userid': self.site.userid}
+        )
+        return TypeAdapter(t.List[Course]).validate_python(response)

@@ -1,3 +1,5 @@
+import pytest
+
 from backend.src.integration import MoodleConfig
 
 from backend.src.integration.client import (
@@ -27,3 +29,10 @@ async def test_api_client_invalid_endpoint(config: MoodleConfig) -> None:
         await client._make_request('invalid_endpoint')
     except APICallingException as e:
         assert e.code == 1002, 'APICallingException code should be 1002 for invalid endpoint'
+
+
+@pytest.mark.asyncio(loop_scope='session')
+async def test_api_client_get_courses(client: APIClient) -> None:
+    # NOTE: for passing this test, you need AT LEAST 1 test course added
+    courses = await client.get_courses()
+    assert courses
