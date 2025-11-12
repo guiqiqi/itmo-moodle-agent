@@ -5,7 +5,8 @@ from backend.src.integration import (
     IntegrationException,
     MoodleConfig,
     logger,
-    Course
+    Course,
+    Assignment
 )
 
 import typing as t
@@ -59,7 +60,6 @@ class APIClient:
 
     async def __aenter__(self) -> te.Self:
         """Prepare an authenticated client for using."""
-        self.session: aiohttp.ClientSession = aiohttp.ClientSession()
         await self.authenticate()
         await self.sync_site_info()
         return self
@@ -142,3 +142,13 @@ class APIClient:
             params={'userid': self.site.userid}
         )
         return TypeAdapter(t.List[Course]).validate_python(response)
+
+    async def get_course_assignments(self, course_id: int) -> t.List[Assignment]:
+        """Get all assignment info for given course."""
+        response = await self._make_request(
+            endpoint='mod_assign_get_assignments',
+            params={'courseids[0]': [course_id]}
+        )
+        return TypeAdapter(t.List[Assignment]).validate_python(
+            response['courses'][0]['assignments']
+        )

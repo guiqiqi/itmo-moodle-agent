@@ -36,10 +36,10 @@ class Assignment(BaseModel):
     """Assignment structure."""
     id: int
     name: str
-    course_id: int
+    course: int
     intro: str
-    due_date: t.Optional[datetime] = None
-    allow_submissions_from_date: t.Optional[datetime] = None
+    duedate: t.Optional[datetime] = None
+    allowsubmissionsfromdate: t.Optional[datetime] = None
 
 
 class PluginProtocol(t.Protocol):
