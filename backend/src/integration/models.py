@@ -25,6 +25,7 @@ class Assignment(BaseModel):
 
 class OnlineTextPlugin(BaseModel):
     type: t.Literal['onlinetext']
+    text: str = ''
 
 
 class File(BaseModel):
@@ -49,6 +50,7 @@ class FilePlugin(BaseModel):
 class CommentsPlugin(BaseModel):
     type: t.Literal['comments']
     name: str
+    text: str = ''
 
 
 Plugin = t.Annotated[
