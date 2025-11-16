@@ -1,12 +1,12 @@
 import pytest
 
 from backend.src.integration import (
-    MoodleConfig
+    APICallingException
 )
 
 from backend.src.integration.client import (
     APIClient,
-    APICallingException
+    MoodleConfig
 )
 
 
@@ -39,9 +39,18 @@ async def test_api_client_get_courses(client: APIClient) -> None:
     courses = await client.get_courses()
     assert courses
 
+
 @pytest.mark.asyncio(loop_scope='session')
 async def test_api_client_get_course_assignments(client: APIClient) -> None:
     # NOTE: for passing this test, you need AT LEAST 1 test course added with assignments
     courses = await client.get_courses()
     assignments = await client.get_course_assignments(courses[0].id)
     assert assignments
+
+
+@pytest.mark.asyncio(loop_scope='session')
+async def test_api_client_get_submission_assignments(client: APIClient) -> None:
+    courses = await client.get_courses()
+    assignments = await client.get_course_assignments(courses[0].id)
+    submissions = await client.get_assignment_submissions(assignments[0].id)
+    assert submissions

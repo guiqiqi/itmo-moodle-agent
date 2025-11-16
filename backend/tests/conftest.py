@@ -3,8 +3,10 @@ import pytest_asyncio as pytest
 import typing as t
 
 from backend.src.config import settings
-from backend.src.integration import MoodleConfig
-from backend.src.integration.client import APIClient
+from backend.src.integration.client import (
+    APIClient,
+    MoodleConfig
+)
 
 
 @pytest.fixture(scope='session')

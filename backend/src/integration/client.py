@@ -2,15 +2,27 @@ import aiohttp
 from pydantic import BaseModel, TypeAdapter
 
 from backend.src.integration import (
-    IntegrationException,
-    MoodleConfig,
     logger,
+    AuthenticationException,
+    APICallingException,
+    UnSynchronizedSiteInfo
+)
+from backend.src.integration.models import (
     Course,
-    Assignment
+    Assignment,
+    Submission
 )
 
 import typing as t
 import typing_extensions as te
+
+
+class MoodleConfig(BaseModel):
+    """Configuration for connecting to Moodle."""
+    username: str
+    password: str
+    base_url: str
+    service: t.Literal['moodle_mobile_app', '']
 
 
 class AuthenticationForm(BaseModel):
@@ -33,21 +45,6 @@ class Token(BaseModel):
     """Authentication token model."""
     token: str | None = None
     error: t.Optional[str] | None = None
-
-
-class AuthenticationException(IntegrationException):
-    """Exception raised for authentication errors."""
-    _code: int = 1001
-
-
-class UnSynchronizedSiteInfo(IntegrationException):
-    """Exception when API calling without syncornized siteinfo."""
-    _code: int = 1002
-
-
-class APICallingException(IntegrationException):
-    """Exception raised for API calling errors."""
-    _code: int = 1010
 
 
 class APIClient:
@@ -151,4 +148,14 @@ class APIClient:
         )
         return TypeAdapter(t.List[Assignment]).validate_python(
             response['courses'][0]['assignments']
+        )
+
+    async def get_assignment_submissions(self, assignment_id: int) -> t.List[Submission]:
+        """Get all submissions for given course."""
+        response = await self._make_request(
+            endpoint='mod_assign_get_submissions',
+            params={'assignmentids[0]': assignment_id}
+        )
+        return TypeAdapter(t.List[Submission]).validate_python(
+            response['assignments'][0]['submissions']
         )
