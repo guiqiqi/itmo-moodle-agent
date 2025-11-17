@@ -20,3 +20,7 @@ async def test_moodle_configuration(config) -> None:
     assert config.password != 'pass', 'moodle password should not be empty in test config'
     assert config.base_url != 'moodle.example.com', 'moodle base URL should not be empty in test config'
     assert config.service == 'moodle_mobile_app', 'moodle service should be set to moodle_mobile_app in test config'
+
+
+async def test_database_uri() -> None:
+    assert settings.DATABASE_URI == "sqlite+aiosqlite:///:memory:", "in testing environment, database should be sqlite in-memory"

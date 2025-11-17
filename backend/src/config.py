@@ -1,5 +1,12 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-import pydantic
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict
+)
+from pydantic import (
+    RedisDsn,
+    PostgresDsn,
+    computed_field
+)
 
 import typing as t
 import logging
@@ -24,7 +31,7 @@ class Settings(BaseSettings):
     LOG_FILE_MAXSIZE: int = 1024 * 1024
     LOG_FILE_AUTOBACKUP: int = 10
 
-    @pydantic.computed_field
+    @computed_field
     @property
     def LOG_HANDLERS(self) -> t.List[logging.Handler]:
         handlers = []
@@ -51,6 +58,47 @@ class Settings(BaseSettings):
         env_file=f'.env.{ENVIRONMENT}',
         env_file_encoding='utf-8'
     )
+
+    # Database settings
+    POSTGRES_HOST: str = 'localhost'
+    POSTGRES_PORT: int = 5432
+    POSTGRES_USER: str = 'postgres'
+    POSTGRES_PASSWORD: str = 'postgres'
+    POSTGRES_DB: str = ''
+
+    @computed_field
+    @property
+    def DATABASE_URI(self) -> PostgresDsn | str:
+        """Use SQLite memory database when in testing enviroment."""
+        if self.ENVIRONMENT == 'test':
+            return 'sqlite+aiosqlite:///:memory:'
+
+        return PostgresDsn.build(
+            scheme='postgresql+asyncpg',
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_HOST,
+            port=self.POSTGRES_PORT,
+            path=self.POSTGRES_DB
+        )
+
+    # Celery Broker settings
+    REDIS_HOST: str = 'localhost'
+    REDIS_PORT: int = 6379
+    REDIS_BROKER_DB: int = 0
+    REDIS_PASSWORD: str = ''
+
+    @computed_field
+    @property
+    def REDIS_URI(self) -> RedisDsn:
+        """Building Redis URI for Celery and caching."""
+        return RedisDsn.build(
+            scheme='redis',
+            host=self.REDIS_HOST,
+            port=self.REDIS_PORT,
+            path=str(self.REDIS_BROKER_DB),
+            password=self.REDIS_PASSWORD or None
+        )
 
 
 settings = Settings()
