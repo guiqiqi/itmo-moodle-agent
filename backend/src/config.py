@@ -7,6 +7,7 @@ from pydantic import (
     PostgresDsn,
     computed_field
 )
+import celery
 
 import typing as t
 import logging
@@ -98,6 +99,19 @@ class Settings(BaseSettings):
             port=self.REDIS_PORT,
             path=str(self.REDIS_BROKER_DB),
             password=self.REDIS_PASSWORD or None
+        )
+
+    # Celery dispatcher settings
+    CELERY_TASK_QUEUE: str = 'tasks'
+
+    @computed_field
+    @property
+    def CELERY(self) -> celery.Celery:
+        """Build celery instance using settings."""
+        return celery.Celery(
+            self.CELERY_TASK_QUEUE,
+            broker=str(self.REDIS_URI),
+            backend=str(self.REDIS_URI)
         )
 
 
