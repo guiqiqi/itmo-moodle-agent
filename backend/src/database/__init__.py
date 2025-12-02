@@ -1,4 +1,5 @@
-from src.config import settings
+from backend.src import BackendException
+from backend.src.config import settings
 
 import logging
 
@@ -15,3 +16,18 @@ async def init() -> AsyncEngine:
         await conn.run_sync(SQLModel.metadata.create_all)
     logger.debug("database initialized")
     return engine
+
+
+class DatabaseException(BackendException):
+    """Base Exception for database error."""
+    _base_code: int = 20000
+
+
+class InvalidAuthenticationMethod(DatabaseException):
+    """Raise when given bitmask not corresponded to any auth method."""
+    _code: int = 1001
+
+
+class InvalidLogin(DatabaseException):
+    """Raise when user login invalid."""
+    _code: int = 1002

@@ -1,3 +1,8 @@
+from backend.src.database import (
+    InvalidAuthenticationMethod,
+    InvalidLogin
+)
+
 import typing as t
 import typing_extensions as te
 import uuid
@@ -9,15 +14,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from passlib.context import CryptContext
 
 
-PasswordContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
+PasswordContext = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 
 class UserGroup(SQLModel, table=True):
     user_id: uuid.UUID = Field(
-        nullable=False, foreign_key="user.id", primary_key=True
+        nullable=False, foreign_key='user.id', primary_key=True
     )
     group_id: uuid.UUID = Field(
-        nullable=False, foreign_key="group.id", primary_key=True, ondelete="CASCADE"
+        nullable=False, foreign_key='group.id', primary_key=True, ondelete='CASCADE'
     )
 
     time_created: datetime = Field(
@@ -38,8 +43,8 @@ class Group(SQLModel, table=True):
         nullable=False
     )
 
-    users: t.List["User"] = Relationship(
-        back_populates="groups", link_model=UserGroup
+    users: t.List['User'] = Relationship(
+        back_populates='groups', link_model=UserGroup
     )
 
     @classmethod
@@ -74,24 +79,100 @@ class Group(SQLModel, table=True):
             return group.first() if group else None
         return None
 
-    async def add_user(self, session: AsyncSession, *, user: "User") -> None:
+    async def add_user(self, session: AsyncSession, *, user: 'User') -> None:
         """Add a user to the group."""
-        await session.refresh(self, attribute_names=["users"])
+        await session.refresh(self, attribute_names=['users'])
         if user not in self.users:
             self.users.append(user)
             session.add(self)
             await session.commit()
-            await session.refresh(self, attribute_names=["users"])
+            await session.refresh(self, attribute_names=['users'])
 
-    async def remove_user(self, session: AsyncSession, *, user: "User") -> None:
+    async def remove_user(self, session: AsyncSession, *, user: 'User') -> None:
         """Remove a user from the group."""
-        await session.refresh(self, attribute_names=["users"])
+        await session.refresh(self, attribute_names=['users'])
         if user in self.users:
             self.users.remove(user)
             session.add(self)
             await session.commit()
             await session.refresh(self)
-            await session.refresh(self, attribute_names=["users"])
+            await session.refresh(self, attribute_names=['users'])
+
+
+class Authentication(SQLModel):
+    bitmask: t.ClassVar[int]
+    identifier: t.ClassVar[str]
+
+    @classmethod
+    def authenticate(cls, bitmask: int, *args, **kwargs) -> 'User':
+        """Call sub-class authenticate function using bitmask."""
+        for ct in cls.__subclasses__():
+            if ct.bitmask == bitmask:
+                return ct.authenticate(*args, **kwargs)
+        raise InvalidAuthenticationMethod(
+            'cannot find authentication method with given bitmask')
+
+
+class PasswordAuthentication(Authentication, table=True):
+    bitmask: t.ClassVar[int] = 0
+    identifier: t.ClassVar[str] = 'Password'
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        nullable=False, foreign_key='user.id', primary_key=True)
+    email: EmailStr = Field(unique=True, index=True, max_length=255)
+    hashed_password: str = Field(nullable=False)
+
+    @classmethod
+    async def query(cls, session: AsyncSession, *, email: str) -> te.Self | None:
+        """Query password authentication by email."""
+        query = await session.exec(select(cls).where(cls.email == email))
+        return query.first()
+
+    @classmethod
+    async def create(cls, session: AsyncSession, *, user: 'User', password: str) -> te.Self:
+        """Create a new password authentication."""
+        hashed_password = PasswordContext.hash(password)
+        auth = cls(user_id=user.id, email=user.email,
+                   hashed_password=hashed_password)
+        session.add(auth)
+        await session.commit()
+        await session.refresh(auth)
+        await user.bind_auth_method(session, auth=auth)
+        await session.refresh(auth)
+        return auth
+
+    async def delete(self, session: AsyncSession) -> None:
+        """Unbind current authentication method and delete it."""
+        user = await User.query(session, id=str(self.user_id))
+        if not user:
+            raise InvalidLogin('internal error - unmatched login method')
+        await user.unbind_auth_method(session, auth=self)
+        await session.delete(self)
+
+    @classmethod
+    async def authenticate(cls, session: AsyncSession, *, email: str, password: str) -> 'User':
+        """Authenticate user by email and password."""
+        auth = await cls.query(session, email=email)
+        if auth is None:
+            raise InvalidLogin('invalid email or password')
+        if not auth._validate_plain_password(plain_password=password):
+            raise InvalidLogin('invalid email or password')
+        user = await User.query(session, id=str(auth.user_id))
+        if user is None:
+            raise InvalidLogin('internal error - unmatched login method')
+        if user.is_disabled or user.is_deleted:
+            raise InvalidLogin('user account is disabled or deleted')
+        return user
+
+    def _validate_plain_password(self, *, plain_password: str) -> bool:
+        """Validate password with salt using hash algorithm."""
+        return PasswordContext.verify(plain_password, self.hashed_password)
+
+    def _set_hashed_password(self, *, plain_password: str) -> str:
+        """Hash password with salt using hash algorithm."""
+        self.hashed_password = PasswordContext.hash(plain_password)
+        return self.hashed_password
 
 
 class User(SQLModel, table=True):
@@ -110,8 +191,10 @@ class User(SQLModel, table=True):
     time_updated: datetime | None = Field(default=None)
     time_deleted: datetime | None = Field(default=None)
 
+    auth_methods_bitmask: int = Field(default=0)
+
     groups: t.List[Group] = Relationship(
-        back_populates="users", link_model=UserGroup
+        back_populates='users', link_model=UserGroup
     )
 
     @classmethod
@@ -145,3 +228,26 @@ class User(SQLModel, table=True):
             )
             return user.first() if user else None
         return None
+
+    async def bind_auth_method(self, session: AsyncSession, *, auth: Authentication) -> None:
+        """Add an authentication method to the user."""
+        await session.refresh(self)
+        self.auth_methods_bitmask |= 1 << auth.bitmask
+        session.add(self)
+        await session.commit()
+        await session.refresh(self)
+
+    async def unbind_auth_method(self, session: AsyncSession, *, auth: Authentication) -> None:
+        """Remove an authentication method from the user."""
+        self.auth_methods_bitmask &= ~(1 << auth.bitmask)
+        session.add(self)
+        await session.commit()
+        await session.refresh(self)
+
+    async def list_supported_authentication(self) -> t.List[t.Type[Authentication]]:
+        """List all authentication methods support by this user."""
+        supported_auth_methods: t.List[t.Type[Authentication]] = []
+        for ct in Authentication.__subclasses__():
+            if 1 << ct.bitmask & self.auth_methods_bitmask:
+                supported_auth_methods.append(ct)
+        return supported_auth_methods
