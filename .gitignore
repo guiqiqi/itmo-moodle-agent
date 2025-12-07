@@ -11,3 +11,9 @@ wheels/
 
 # Secret files
 *.env*
+
+# Database files
+db/
+
+# Redis files
+redis/

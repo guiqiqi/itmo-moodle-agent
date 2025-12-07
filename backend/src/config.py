@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         extra='ignore',
-        env_file=f'.env.{ENVIRONMENT}',
+        env_file=f'.env',
         env_file_encoding='utf-8'
     )
 
