@@ -61,6 +61,8 @@ async def user(session: AsyncSession) -> t.AsyncGenerator[User, None]:
         )
     await session.refresh(user)
     yield user
+    await session.delete(user)
+    await session.flush()
 
 
 @pytest.fixture(scope='module')

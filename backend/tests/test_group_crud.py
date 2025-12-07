@@ -41,8 +41,3 @@ async def test_add_and_remove_user_group(session: AsyncSession, user: User, grou
     # Verify user is no longer in group
     await session.refresh(user, attribute_names=["groups"])
     assert all(group.name != group.name for group in user.groups)
-
-
-async def test_clean_user_from_database(session: AsyncSession, user: User) -> None:
-    await session.delete(user)
-    await session.flush()
