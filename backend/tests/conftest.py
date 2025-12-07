@@ -3,12 +3,17 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 import typing as t
 
+from backend.tests import mockdata
 from backend.src.config import settings
 from backend.src.integration.client import (
     APIClient,
     MoodleConfig
 )
 from backend.src.database import init, engine
+from backend.src.database.user import (
+    User,
+    Group
+)
 
 
 @pytest.fixture(scope='session')
@@ -41,3 +46,32 @@ async def session() -> t.AsyncGenerator[AsyncSession, None]:
     async with AsyncSession(engine) as session:
         await init()
         yield session
+
+
+@pytest.fixture(scope='module')
+async def user(session: AsyncSession) -> t.AsyncGenerator[User, None]:
+    """Generate or query currently existed mock user for testing."""
+    user = await User.query(session, email=mockdata.user.email)
+    if not user:
+        user = await User.create(
+            session,
+            email=mockdata.user.email,
+            name=mockdata.user.name,
+            description=mockdata.user.description
+        )
+    await session.refresh(user)
+    yield user
+
+
+@pytest.fixture(scope='module')
+async def group(session: AsyncSession) -> t.AsyncGenerator[Group, None]:
+    """Generate mock group data."""
+    group = await Group.query(session, name=mockdata.group.name)
+    if not group:
+        group = await Group.create(
+            session,
+            name=mockdata.group.name,
+            description=mockdata.group.description
+        )
+    await session.refresh(group)
+    yield group

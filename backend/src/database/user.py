@@ -104,11 +104,11 @@ class Authentication(SQLModel):
     identifier: t.ClassVar[str]
 
     @classmethod
-    def authenticate(cls, bitmask: int, *args, **kwargs) -> 'User':
+    async def authenticate(cls, session: AsyncSession, bitmask: int, **kwargs) -> 'User':
         """Call sub-class authenticate function using bitmask."""
         for ct in cls.__subclasses__():
             if ct.bitmask == bitmask:
-                return ct.authenticate(*args, **kwargs)
+                return await ct.authenticate(session, **kwargs)
         raise InvalidAuthenticationMethod(
             'cannot find authentication method with given bitmask')
 
@@ -132,7 +132,7 @@ class PasswordAuthentication(Authentication, table=True):
     @classmethod
     async def create(cls, session: AsyncSession, *, user: 'User', password: str) -> te.Self:
         """Create a new password authentication."""
-        hashed_password = PasswordContext.hash(password)
+        hashed_password = cls._hash_password(plain_password=password)
         auth = cls(user_id=user.id, email=user.email,
                    hashed_password=hashed_password)
         session.add(auth)
@@ -142,6 +142,14 @@ class PasswordAuthentication(Authentication, table=True):
         await session.refresh(auth)
         return auth
 
+    async def reset_password(self, session: AsyncSession, *, password: str) -> None:
+        """Reset password."""
+        await session.refresh(self)
+        self.hashed_password = self._hash_password(plain_password=password)
+        session.add(self)
+        await session.commit()
+        await session.refresh(self)
+
     async def delete(self, session: AsyncSession) -> None:
         """Unbind current authentication method and delete it."""
         user = await User.query(session, id=str(self.user_id))
@@ -149,6 +157,7 @@ class PasswordAuthentication(Authentication, table=True):
             raise InvalidLogin('internal error - unmatched login method')
         await user.unbind_auth_method(session, auth=self)
         await session.delete(self)
+        await session.flush()
 
     @classmethod
     async def authenticate(cls, session: AsyncSession, *, email: str, password: str) -> 'User':
@@ -169,10 +178,10 @@ class PasswordAuthentication(Authentication, table=True):
         """Validate password with salt using hash algorithm."""
         return PasswordContext.verify(plain_password, self.hashed_password)
 
-    def _set_hashed_password(self, *, plain_password: str) -> str:
+    @staticmethod
+    def _hash_password(*, plain_password: str) -> str:
         """Hash password with salt using hash algorithm."""
-        self.hashed_password = PasswordContext.hash(plain_password)
-        return self.hashed_password
+        return PasswordContext.hash(plain_password)
 
 
 class User(SQLModel, table=True):

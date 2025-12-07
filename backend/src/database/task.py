@@ -3,7 +3,7 @@ import uuid
 import enum
 from datetime import datetime, timezone
 
-from src.config import settings
+from backend.src.config import settings
 
 from sqlmodel import SQLModel, Field, Column
 from sqlmodel import Enum as SqlEnum
