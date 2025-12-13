@@ -24,8 +24,8 @@ class Assignment(BaseModel):
 
 
 class OnlineTextPlugin(BaseModel):
-    type: t.Literal['onlinetext']
-    text: str = ''
+    type: t.Literal["onlinetext"]
+    text: str = ""
 
 
 class File(BaseModel):
@@ -43,14 +43,14 @@ class FileArea(BaseModel):
 
 
 class FilePlugin(BaseModel):
-    type: t.Literal['file']
+    type: t.Literal["file"]
     fileareas: t.List[FileArea]
 
 
 class CommentsPlugin(BaseModel):
-    type: t.Literal['comments']
+    type: t.Literal["comments"]
     name: str
-    text: str = ''
+    text: str = ""
 
 
 Plugin = t.Annotated[
@@ -59,7 +59,7 @@ Plugin = t.Annotated[
         FilePlugin,
         CommentsPlugin
     ],
-    Field(discriminator='type')
+    Field(discriminator="type")
 ]
 
 

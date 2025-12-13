@@ -12,7 +12,7 @@ from backend.src.database.user import User
 
 
 async def test_create_successful_task(session: AsyncSession, user: User) -> None:
-    task = settings.CELERY.send_task('awwh')
+    task = settings.CELERY.send_task("awwh")
     tracker = await Task.create(session, celery_task_id=task.id, owner_id=user.id)
     await session.refresh(user)
     assert tracker.status == TaskStatus.PENDING
@@ -25,11 +25,11 @@ async def test_create_successful_task(session: AsyncSession, user: User) -> None
 
     # Check if task finished ans result collected
     assert tracker.status == TaskStatus.SUCCESS
-    assert tracker.celery_task_result == 'True'
+    assert tracker.celery_task_result == "True"
 
 
 async def test_create_failed_task(session: AsyncSession, user: User) -> None:
-    task = settings.CELERY.send_task('oops')
+    task = settings.CELERY.send_task("oops")
     await session.refresh(user)
     tracker = await Task.create(session, celery_task_id=task.id, owner_id=user.id)
     await session.refresh(user)

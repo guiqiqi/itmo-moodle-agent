@@ -16,13 +16,13 @@ from backend.src.database.user import (
 )
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 async def nothing() -> None:
     """Nothing will be provided by this fixture. Liternally nothing."""
     return None
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 async def config() -> MoodleConfig:
     """Moodle configuration for tests."""
     return MoodleConfig(
@@ -33,14 +33,14 @@ async def config() -> MoodleConfig:
     )
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 async def client(config: MoodleConfig) -> t.AsyncGenerator[APIClient, None]:
     """Moodle API client for tests."""
     async with APIClient(config) as client:
         yield client
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 async def session() -> t.AsyncGenerator[AsyncSession, None]:
     """Fixture to initialize and provide a database session for tests."""
     async with AsyncSession(engine) as session:
@@ -48,7 +48,7 @@ async def session() -> t.AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 async def user(session: AsyncSession) -> t.AsyncGenerator[User, None]:
     """Generate or query currently existed mock user for testing."""
     user = await User.query(session, email=mockdata.user.email)
@@ -65,7 +65,7 @@ async def user(session: AsyncSession) -> t.AsyncGenerator[User, None]:
     await session.flush()
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 async def group(session: AsyncSession) -> t.AsyncGenerator[Group, None]:
     """Generate mock group data."""
     group = await Group.query(session, name=mockdata.group.name)
