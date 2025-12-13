@@ -31,6 +31,8 @@ TaskStatusFinal = {
 
 
 class Task(SQLModel, table=True):
+    __table_args__ = {'extend_existing': True}
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     celery_task_id: str = Field(index=True, unique=True)
     celery_task_result: str | None = Field(default=None)
