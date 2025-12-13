@@ -1,4 +1,4 @@
-from backend.src import BackendException
+from backend.src.exception import BackendException
 from backend.src.config import settings
 
 import logging

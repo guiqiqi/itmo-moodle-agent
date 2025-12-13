@@ -5,7 +5,7 @@ The integration here for system.
 from __future__ import annotations
 
 
-from backend.src import BackendException
+from backend.src.exception import BackendException
 
 import logging
 
