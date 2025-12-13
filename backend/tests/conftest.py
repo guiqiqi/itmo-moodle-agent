@@ -1,8 +1,10 @@
 import pytest_asyncio as pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
+from httpx import ASGITransport, AsyncClient
 
 import typing as t
 
+from backend.src import app
 from backend.tests import mockdata
 from backend.src.config import settings
 from backend.src.integration.client import (
@@ -77,3 +79,13 @@ async def group(session: AsyncSession) -> t.AsyncGenerator[Group, None]:
         )
     await session.refresh(group)
     yield group
+
+
+@pytest.fixture(scope="module")
+async def api() -> t.AsyncGenerator[AsyncClient, None]:
+    """Fixture to provide a TestClient for API testing."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url=f"http://{settings.PROJECT_NAME}.test/api/{settings.API_VERSION}",
+    ) as client:
+        yield client
