@@ -12,23 +12,31 @@ import celery
 import typing as t
 import logging
 import logging.handlers as lhandlers
+import secrets
 
 
 class Settings(BaseSettings):
 
     # Base project settings
-    PROJECT_NAME: str = 'itmo-moodle-agent'
+    PROJECT_NAME: str = "itmo-moodle-agent"
     ENVIRONMENT: t.Literal[
-        'test', 'dev', 'prod'
-    ] = 'test'
+        "test", "dev", "prod"
+    ] = "test"
+    API_VERSION: str = "v1"
+
+    # Security settings
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    JWT_ALGORITHM: t.Literal["HS256"] = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+    CORS_ORIGINS: t.List[str] = ["*"]
 
     # Logger settings
     LOG_LEVEL: t.Literal[
-        'DEBUG', 'INFO', 'WARNING',
-        'ERROR', 'CRITICAL'
-    ] = 'DEBUG'
-    LOG_FORMAT: str = '[%(asctime)s] [%(levelname)s] %(message)s'
-    LOG_FILE: str = f'logs/{PROJECT_NAME}.log'
+        "DEBUG", "INFO", "WARNING",
+        "ERROR", "CRITICAL"
+    ] = "DEBUG"
+    LOG_FORMAT: str = "[%(asctime)s] [%(levelname)s] %(message)s"
+    LOG_FILE: str = f"logs/{PROJECT_NAME}.log"
     LOG_FILE_MAXSIZE: int = 1024 * 1024
     LOG_FILE_AUTOBACKUP: int = 10
 
@@ -47,35 +55,35 @@ class Settings(BaseSettings):
         return handlers
 
     # Moodle integration settings
-    MOODLE_BASE_URL: str = 'https://moodle.example.com/m'
+    MOODLE_BASE_URL: str = "https://moodle.example.com/m"
 
     # Development and testing configurations
-    MOODLE_USERNAME: str = 'user'
-    MOODLE_PASSWORD: str = 'pass'
-    MOODLE_SERVICE: t.Literal['moodle_mobile_app', ''] = 'moodle_mobile_app'
+    MOODLE_USERNAME: str = "user"
+    MOODLE_PASSWORD: str = "pass"
+    MOODLE_SERVICE: t.Literal["moodle_mobile_app", ""] = "moodle_mobile_app"
 
     model_config = SettingsConfigDict(
-        extra='ignore',
-        env_file=f'.env',
-        env_file_encoding='utf-8'
+        extra="ignore",
+        env_file=f".env",
+        env_file_encoding="utf-8"
     )
 
     # Database settings
-    POSTGRES_HOST: str = 'localhost'
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = 'postgres'
-    POSTGRES_PASSWORD: str = 'postgres'
-    POSTGRES_DB: str = ''
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str = ""
 
     @computed_field
     @property
     def DATABASE_URI(self) -> PostgresDsn | str:
         """Use SQLite memory database when in testing enviroment."""
-        if self.ENVIRONMENT == 'test':
-            return 'sqlite+aiosqlite:///:memory:'
+        if self.ENVIRONMENT == "test":
+            return "sqlite+aiosqlite:///:memory:"
 
         return PostgresDsn.build(
-            scheme='postgresql+asyncpg',
+            scheme="postgresql+asyncpg",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_HOST,
@@ -84,17 +92,17 @@ class Settings(BaseSettings):
         )
 
     # Celery Broker settings
-    REDIS_HOST: str = 'localhost'
+    REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_BROKER_DB: int = 0
-    REDIS_PASSWORD: str = ''
+    REDIS_PASSWORD: str = ""
 
     @computed_field
     @property
     def REDIS_URI(self) -> RedisDsn:
         """Building Redis URI for Celery and caching."""
         return RedisDsn.build(
-            scheme='redis',
+            scheme="redis",
             host=self.REDIS_HOST,
             port=self.REDIS_PORT,
             path=str(self.REDIS_BROKER_DB),
@@ -102,7 +110,7 @@ class Settings(BaseSettings):
         )
 
     # Celery dispatcher settings
-    CELERY_TASK_QUEUE: str = 'tasks'
+    CELERY_TASK_QUEUE: str = "tasks"
 
     @computed_field
     @property
