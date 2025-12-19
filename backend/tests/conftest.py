@@ -65,6 +65,8 @@ async def group(session: AsyncSession) -> t.AsyncGenerator[Group, None]:
         )
     await session.refresh(group)
     yield group
+    await session.delete(group)
+    await session.flush()
 
 
 @pytest.fixture(scope="module")
@@ -86,8 +88,9 @@ async def user(group: Group, session: AsyncSession) -> t.AsyncGenerator[User, No
 
 
 @pytest.fixture(scope="function")
-async def token(user: User) -> str:
+async def token(session: AsyncSession, user: User) -> str:
     """Generate JWT Token for testing."""
+    await session.refresh(user)
     token = JWTToken.create_access_token(subject=str(user.id))
     return token.access_token
 
