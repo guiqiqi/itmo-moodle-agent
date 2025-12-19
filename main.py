@@ -1,12 +1,11 @@
-from backend.src.integration.client import APICallingException
+from backend.src import app, settings
 
-def main():
-    print("Hello from itmo-moodle-agent!")
-
+import uvicorn
 
 if __name__ == "__main__":
-    main()
-    try: 
-        raise APICallingException("An error occurred while calling the API.")
-    except APICallingException as e:
-        print(f"Caught an exception: {e}, Code: {e.code}")
+    uvicorn.run(
+        app,
+        host=settings.UVICORN_HOST,
+        port=settings.UVICORN_PORT,
+        reload=settings.UVICORN_RELOAD
+    )

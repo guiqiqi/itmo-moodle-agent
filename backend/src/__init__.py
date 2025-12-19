@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.src.config import settings
-from src.database import init as init_db
-from src.api import init as init_api
+from backend.src.database import init as init_db
+from backend.src.api import init as init_api
 
 
 import logging

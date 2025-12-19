@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     ] = "test"
     API_VERSION: str = "v1"
 
+    # Running FastAPI settings
+    UVICORN_HOST: str = "127.0.0.1"
+    UVICORN_PORT: int = 8443
+    UVICORN_RELOAD: bool = False
+
     # Security settings
     SECRET_KEY: str = secrets.token_urlsafe(32)
     JWT_ALGORITHM: t.Literal["HS256"] = "HS256"

@@ -1,4 +1,4 @@
-from src.config import settings
+from backend.src.config import settings
 
 import typing_extensions as te
 from datetime import datetime, timezone, timedelta
