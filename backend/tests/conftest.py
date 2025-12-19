@@ -16,6 +16,9 @@ from backend.src.database.user import (
     User,
     Group
 )
+from backend.src.api.models import (
+    JWTToken
+)
 
 
 @pytest.fixture(scope="session")
@@ -51,23 +54,6 @@ async def session() -> t.AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture(scope="module")
-async def user(session: AsyncSession) -> t.AsyncGenerator[User, None]:
-    """Generate or query currently existed mock user for testing."""
-    user = await User.query(session, email=mockdata.user.email)
-    if not user:
-        user = await User.create(
-            session,
-            email=mockdata.user.email,
-            name=mockdata.user.name,
-            description=mockdata.user.description
-        )
-    await session.refresh(user)
-    yield user
-    await session.delete(user)
-    await session.flush()
-
-
-@pytest.fixture(scope="module")
 async def group(session: AsyncSession) -> t.AsyncGenerator[Group, None]:
     """Generate mock group data."""
     group = await Group.query(session, name=mockdata.group.name)
@@ -79,6 +65,31 @@ async def group(session: AsyncSession) -> t.AsyncGenerator[Group, None]:
         )
     await session.refresh(group)
     yield group
+
+
+@pytest.fixture(scope="module")
+async def user(group: Group, session: AsyncSession) -> t.AsyncGenerator[User, None]:
+    """Generate or query currently existed mock user for testing."""
+    user = await User.query(session, email=mockdata.user.email)
+    if not user:
+        user = await User.create(
+            session,
+            email=mockdata.user.email,
+            name=mockdata.user.name,
+            description=mockdata.user.description
+        )
+    await session.refresh(user)
+    await group.add_user(session, user=user)
+    yield user
+    await session.delete(user)
+    await session.flush()
+
+
+@pytest.fixture(scope="function")
+async def token(user: User) -> str:
+    """Generate JWT Token for testing."""
+    token = JWTToken.create_access_token(subject=str(user.id))
+    return token.access_token
 
 
 @pytest.fixture(scope="module")
