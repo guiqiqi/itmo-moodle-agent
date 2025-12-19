@@ -19,6 +19,8 @@ async def healthy() -> bool:
 
 def init() -> APIRouter:
     from backend.src.api.routes import task
+    from backend.src.api.routes import auth
     router.include_router(task.router)
+    router.include_router(auth.router)
     logger.debug("api initialized")
     return router
