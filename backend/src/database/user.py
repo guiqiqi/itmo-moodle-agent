@@ -318,3 +318,4 @@ class RefreshToken(SQLModel, table=True):
         """Delete refresh token for logging out."""
         await session.delete(self)
         await session.flush()
+        await session.commit()
