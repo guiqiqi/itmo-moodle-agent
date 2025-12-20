@@ -1,5 +1,9 @@
+from backend.src import settings
 from backend.src.database.user import User
 
+from datetime import datetime, timezone, timedelta
+
+import jwt
 from httpx import AsyncClient
 
 
@@ -80,3 +84,36 @@ async def test_user_password_registration(
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
+
+
+async def test_invalid_access_token(
+    api: AsyncClient
+) -> None:
+    """Test invalid access token."""
+    response = await api.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"}
+    )
+    assert response.status_code == 403
+
+
+async def test_expired_access_token(
+    api: AsyncClient,
+    user: User
+) -> None:
+    """Test expired access token."""
+    now = datetime.now(timezone.utc)
+    access_token = jwt.encode(
+        payload={
+            "sub": str(user.id),
+            "iat": now - timedelta(seconds=60),
+            "exp": now - timedelta(seconds=30)
+        },
+        key=settings.SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM
+    )
+    response = await api.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert response.status_code == 401
