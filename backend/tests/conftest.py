@@ -90,8 +90,7 @@ async def user(group: Group, session: AsyncSession) -> t.AsyncGenerator[User, No
 @pytest.fixture(scope="function")
 async def token(session: AsyncSession, user: User) -> str:
     """Generate JWT Token for testing."""
-    await session.refresh(user)
-    token = JWTToken.create_access_token(subject=str(user.id))
+    token = await JWTToken.create(session, user=user)
     return token.access_token
 
 

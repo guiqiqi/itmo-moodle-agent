@@ -72,7 +72,7 @@ async def generate_token(
         raise HTTPException(401, f"invalid credentials - {error}")
     if user.is_disabled or user.is_deleted:
         raise HTTPException(422, "inactive user")
-    return JWTToken.create_access_token(subject=str(user.id))
+    return await JWTToken.create(session, user)
 
 
 @router.get(

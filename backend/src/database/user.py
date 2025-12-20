@@ -1,3 +1,4 @@
+from backend.src import settings
 from backend.src.database import (
     InvalidAuthenticationMethod,
     InvalidLogin
@@ -6,7 +7,8 @@ from backend.src.database import (
 import typing as t
 import typing_extensions as te
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import secrets
 
 from pydantic import EmailStr
 from sqlmodel import SQLModel, Field, Relationship, select
@@ -260,3 +262,59 @@ class User(SQLModel, table=True):
             if 1 << ct.bitmask & self.auth_methods_bitmask:
                 supported_auth_methods.append(ct)
         return supported_auth_methods
+
+
+class RefreshToken(SQLModel, table=True):
+    user_id: uuid.UUID = Field(
+        nullable=False, foreign_key="user.id", primary_key=True)
+    content: str = Field(nullable=False, primary_key=True)
+
+    time_created: datetime = Field(
+        default_factory=lambda: datetime.now(
+            timezone.utc).replace(tzinfo=None),
+        nullable=False
+    )
+    valid_before: datetime = Field(
+        default_factory=lambda: datetime.now(
+            timezone.utc
+        ).replace(tzinfo=None) + timedelta(
+            minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES
+        ),
+        nullable=False
+    )
+
+    @classmethod
+    async def query(cls, session: AsyncSession, *, content: str | None = None, user: User | None = None) -> te.Self | None:
+        """Query a refresh token by token or user."""
+        if content is None and user is None:
+            return None
+        if content:
+            query = await session.exec(select(cls).where(cls.content == content))
+            return query.first()
+        if user:
+            await session.refresh(user)
+            query = await session.exec(select(cls).where(cls.user_id == user.id))
+            return query.first()
+
+    @classmethod
+    async def create(cls, session: AsyncSession, *, user: User) -> te.Self:
+        """Create or update refresh token for corresponded user."""
+        token = await cls.query(session, user=user)
+        if token:
+            token.content = secrets.token_hex(32)
+            token.time_created = datetime.now(
+                timezone.utc).replace(tzinfo=None)
+            token.valid_before = token.time_created + timedelta(
+                minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES
+            )
+        else:
+            await session.refresh(user)
+            token = cls(user_id=user.id, content=secrets.token_hex(32))
+        session.add(token)
+        await session.commit()
+        return token
+
+    async def delete(self, session: AsyncSession) -> None:
+        """Delete refresh token for logging out."""
+        await session.delete(self)
+        await session.flush()
