@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 UnauthorizedResponses: t.Dict = {
-    401: {"description": "invalid credentials"},
+    401: {"description": "access token expired"},
+    403: {"description": "invalid credentials"},
     422: {"description": "inactive user"},
 }
 

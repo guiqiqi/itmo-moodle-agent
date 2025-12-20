@@ -2,11 +2,14 @@ from backend.src.config import settings
 from backend.src.database import engine
 from backend.src.database.user import User
 from backend.src.api.models import JWTTokenPayload
+from backend.src.api import (
+    InvalidAccessToken,
+    AccessTokenExpired
+)
 
 import typing as t
 
 import jwt
-import pydantic
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -37,8 +40,10 @@ async def _get_current_user(session: SessionRequired, token: str = Depends(Token
             algorithms=settings.JWT_ALGORITHM
         )
         payload = JWTTokenPayload.model_validate(decoded_jwt_token)
-    except (jwt.PyJWTError, pydantic.ValidationError):
-        raise HTTPException(401, "invalid credentials")
+    except (jwt.PyJWTError, InvalidAccessToken):
+        raise HTTPException(403, "invalid credentials")
+    except AccessTokenExpired as error:
+        raise HTTPException(401, error)
 
     # Get user from the database
     user = await User.query(session, id=payload.sub)

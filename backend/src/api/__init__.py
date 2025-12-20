@@ -1,3 +1,4 @@
+from backend.src.exception import BackendException
 from backend.src.config import settings
 
 import logging
@@ -8,6 +9,19 @@ from fastapi import APIRouter
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix=f"/{settings.API_VERSION}")
+
+
+class APIException(BackendException):
+    """Base Exception for API error."""
+    _base_code: int = 20000
+
+
+class InvalidAccessToken(APIException):
+    _code: int = 1001
+
+
+class AccessTokenExpired(APIException):
+    _code: int = 1002
 
 
 @router.get("/healthy", summary="Health Check", description="Check the health status of the API.")

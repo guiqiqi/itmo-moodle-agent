@@ -3,6 +3,10 @@ from backend.src.database.user import (
     User,
     RefreshToken
 )
+from backend.src.api import (
+    InvalidAccessToken,
+    AccessTokenExpired
+)
 
 import typing_extensions as te
 from datetime import datetime, timezone, timedelta
@@ -22,9 +26,9 @@ class JWTTokenPayload(SQLModel):
     def validate_token_timestamp(self) -> te.Self:
         now = datetime.now(timezone.utc)
         if self.exp < now:
-            raise ValueError("token is expired")
+            raise AccessTokenExpired(f"expired at {self.exp}")
         if self.iat > now:
-            raise ValueError("token was issued in the future")
+            raise InvalidAccessToken("token was issued in the future")
         return self
 
 
