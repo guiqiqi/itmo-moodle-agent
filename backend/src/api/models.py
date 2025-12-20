@@ -65,7 +65,7 @@ class JWTToken(SQLModel):
         if not refresh_token:
             raise ValueError("refresh token not found")
         now = datetime.now(timezone.utc)
-        if refresh_token.valid_before >= now:
+        if refresh_token.valid_before <= now.replace(tzinfo=None):
             raise ValueError("refresh token expired, please re-login")
         payload = JWTTokenPayload(
             sub=str(refresh_token.user_id), iat=now,
