@@ -7,7 +7,9 @@ from pydantic import (
     PostgresDsn,
     computed_field
 )
+import redis
 import celery
+from authlib.integrations.httpx_client import AsyncOAuth2Client
 
 import typing as t
 import logging
@@ -23,6 +25,7 @@ class Settings(BaseSettings):
         "test", "dev", "prod"
     ] = "test"
     API_VERSION: str = "v1"
+    PROJECT_SITE: str = "http://localhost:8443"
 
     # Running FastAPI settings
     UVICORN_HOST: str = "127.0.0.1"
@@ -104,7 +107,7 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
-    def REDIS_URI(self) -> RedisDsn:
+    def REDIS_BROKER_URI(self) -> RedisDsn:
         """Building Redis URI for Celery and caching."""
         return RedisDsn.build(
             scheme="redis",
@@ -123,8 +126,43 @@ class Settings(BaseSettings):
         """Build celery instance using settings."""
         return celery.Celery(
             self.CELERY_TASK_QUEUE,
-            broker=str(self.REDIS_URI),
-            backend=str(self.REDIS_URI)
+            broker=str(self.REDIS_BROKER_URI),
+            backend=str(self.REDIS_BROKER_URI)
+        )
+
+    # Redis parameters
+    REDIS_DB: int = 1
+
+    @computed_field
+    @property
+    def REDIS(self) -> redis.Redis:
+        """Build global redis session."""
+        return redis.Redis(
+            host=self.REDIS_HOST,
+            port=self.REDIS_PORT,
+            db=self.REDIS_DB,
+            password=self.REDIS_PASSWORD or None
+        )
+
+    # OAuth login parameters
+    OAUTH_CLIENT_ID: str = "xxxxxx-xxxxxxx-xxxxxxx-xxxxxxx"
+    OAUTH_CLIENT_SECRET: str = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
+    OAUTH_CLIENT_SCOPE: t.List[str] = ["openid", "profile", "email"]
+    OAUTH_CLIENT_STATE_TTL: int = 300
+    OAUTH_SERVER_NAME: str = "OAuth Login"
+    OAUTH_SERVER_URL: str = "https://example-server.com/auth"
+    OAUTH_SERVER_TOKEN_URL: str = "https://example-server.com/token"
+    OAUTH_SERVER_INFO_URL: str = "https://example-server.com/userinfo"
+
+    @computed_field
+    @property
+    def OAUTH(self) -> AsyncOAuth2Client:
+        """Build OAuth 2 client."""
+        return AsyncOAuth2Client(
+            client_id=self.OAUTH_CLIENT_ID,
+            client_secret=self.OAUTH_CLIENT_SECRET,
+            scope=self.OAUTH_CLIENT_SCOPE,
+            redirect_uri=f"{self.PROJECT_SITE}/auth/oauth/callback"
         )
 
 
