@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import SQLModel
 
@@ -122,6 +122,35 @@ async def register_user(
     )
     await user.bind_auth_method(session, auth=auth)
     return UserInfo(**user.model_dump())
+
+
+@router.post(
+    "/token/refresh",
+    summary="Refresh access token using refresh token"
+)
+async def refresh_access_token(
+    session: dependencies.SessionRequired,
+    refresh_token: str
+) -> JWTToken:
+    """Refresh acccess token."""
+    try:
+        token = await JWTToken.refresh(session, content=refresh_token)
+        return token
+    except ValueError as error:
+        raise HTTPException(403, f"{str(error)}")
+
+
+@router.post(
+    "/logout",
+    summary="Logout current user"
+)
+async def logout(
+    session: dependencies.SessionRequired,
+    user: dependencies.UserRequired
+) -> Response:
+    """Logout and redirect user to homepage."""
+    await JWTToken.destroy(session, user)
+    return Response(status_code=200)
 
 
 if settings.ENVIRONMENT == "test":

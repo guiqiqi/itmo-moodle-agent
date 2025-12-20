@@ -1,5 +1,6 @@
 from backend.src import settings
 from backend.src.database.user import User
+from backend.src.api.models import JWTToken
 
 from datetime import datetime, timezone, timedelta
 
@@ -117,3 +118,61 @@ async def test_expired_access_token(
         headers={"Authorization": f"Bearer {access_token}"}
     )
     assert response.status_code == 401
+
+
+async def test_invalid_refresh_token(
+    api: AsyncClient
+) -> None:
+    """Test refresh access token with invalid refresh token."""
+    response = await api.post(
+        "/auth/token/refresh",
+        params={
+            "refresh_token": "this is not a valid refresh token"
+        }
+    )
+    assert response.status_code == 403
+
+
+async def test_refresh_token(
+    api: AsyncClient,
+    jwt: JWTToken
+) -> None:
+    """Test refresh access token normally."""
+    response = await api.post(
+        "/auth/token/refresh",
+        params={
+            "refresh_token": jwt.refresh_token
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    access_token = data["access_token"]
+
+    # Test if new access token could be used
+    response = await api.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert response.status_code == 200
+
+
+async def test_loggout(
+    api: AsyncClient,
+    jwt: JWTToken
+) -> None:
+    """Test logout user."""
+    response = await api.post(
+        "/auth/logout",
+        headers={"Authorization": f"Bearer {jwt.access_token}"}
+    )
+    assert response.status_code == 200
+
+    # Try to refresh access token again
+    response = await api.post(
+        "/auth/token/refresh",
+        params={
+            "refresh_token": jwt.refresh_token
+        }
+    )
+    assert response.status_code == 403

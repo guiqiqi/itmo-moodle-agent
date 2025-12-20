@@ -94,6 +94,13 @@ async def token(session: AsyncSession, user: User) -> str:
     return token.access_token
 
 
+@pytest.fixture(scope="function")
+async def jwt(session: AsyncSession, user: User) -> JWTToken:
+    """Generate JWT Token for testing."""
+    token = await JWTToken.create(session, user=user)
+    return token
+
+
 @pytest.fixture(scope="module")
 async def api() -> t.AsyncGenerator[AsyncClient, None]:
     """Fixture to provide a TestClient for API testing."""
