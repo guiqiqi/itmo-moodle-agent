@@ -37,13 +37,16 @@ async def _get_current_user(session: SessionRequired, token: str = Depends(Token
         decoded_jwt_token = jwt.decode(
             token,
             settings.SECRET_KEY,
-            algorithms=settings.JWT_ALGORITHM
+            algorithms=settings.JWT_ALGORITHM,
+            options={
+                "verify_exp": False
+            }
         )
         payload = JWTTokenPayload.model_validate(decoded_jwt_token)
+    except AccessTokenExpired:
+        raise HTTPException(401, "access token has expired")
     except (jwt.PyJWTError, InvalidAccessToken):
         raise HTTPException(403, "invalid credentials")
-    except AccessTokenExpired as error:
-        raise HTTPException(401, error)
 
     # Get user from the database
     user = await User.query(session, id=payload.sub)
