@@ -10,6 +10,7 @@ from backend.src.api import (
 import typing as t
 
 import jwt
+import redis
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -72,3 +73,32 @@ class UserGroupsRequired:
         if not any(group in user_groups for group in self.expected_groups):
             raise HTTPException(403, "user does not match any group expected")
         return user
+
+
+class OAuthStateRequired:
+    """Dependency for checking if the state parameter matches the previously submitted one."""
+
+    @classmethod
+    async def record_state(cls, state: str, url: str, ttl: int = settings.OAUTH_CLIENT_STATE_TTL) -> None:
+        """Record state and url in Redis with TTL."""
+        await settings.REDIS.set(
+            name=f"oauth:state:{state}",
+            value=url,
+            ex=ttl,
+            nx=True
+        )
+
+    async def __call__(self, state: str) -> None:
+        """Access state, verify and deactive it."""
+        with settings.REDIS.pipeline() as pipe:
+            try:
+                pipe.watch(state)
+                url = pipe.get(state)
+                if url is None:
+                    pipe.unwatch()
+                    raise HTTPException(403, "cannot find corresponded state")
+                pipe.multi()
+                pipe.delete(state)
+                pipe.execute()
+            except redis.WatchError:
+                raise HTTPException(403, "cannot find corresponded state")

@@ -153,6 +153,43 @@ async def logout(
     return Response(status_code=200)
 
 
+class OAuthRedirectURL(SQLModel):
+    """Redirect user to OAuth server."""
+    name: str = settings.OAUTH_SERVER_NAME
+    url: str
+
+
+@router.get(
+    "/oauth/redirect",
+    summary="Get OAuth2 login redirect URL",
+    description="Redirect to given URL for authtication."
+)
+async def redirect_oauth_login() -> OAuthRedirectURL:
+    """Redirect user to OAuth server site."""
+    url, state = settings.OAUTH.create_authorization_url(
+        url=settings.OAUTH_SERVER_URL
+    )
+    await dependencies.OAuthStateRequired.record_state(state, url)
+    return OAuthRedirectURL(url=url)
+
+
+@router.get(
+    "/oauth/login",
+    summary="Login user callback",
+    description="This endpoint should be redirected to by OAuth server."
+)
+async def oauth_login_callback() -> JWTToken:
+    """
+    1. Get code from OAuth server.
+    2. Get access token using code from OAuth server.
+    3. Get user info from OAuth server using access token.
+        3.1. Create new user and OAuth login method for user;
+        3.2. Merge OAuth login method for current user;
+    4. Generate JWTToken for logged in user
+    """
+    ...
+
+
 if settings.ENVIRONMENT == "test":
     logger.info("including test-only routes: /auth/confidential")
 
